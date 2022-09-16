@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
 	"github.com/joshsoftware/sparkode-core/handler"
 )
 
@@ -11,7 +12,8 @@ import (
 func InitRouter() (router *mux.Router) {
 	router = mux.NewRouter()
 
-	router.HandleFunc("/run", handler.RuncodeHandler).Methods(http.MethodPost)
+	router.HandleFunc("/ping", handler.PingHandler).Methods(http.MethodGet)
+	router.HandleFunc("/executeCode", handler.RuncodeHandler).Methods(http.MethodPost)
 
 	return
 }
