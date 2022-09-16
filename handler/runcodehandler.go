@@ -4,22 +4,47 @@ import (
 	"encoding/json"
 	"net/http"
 
-	logger "github.com/sirupsen/logrus"
+	"github.com/joshsoftware/sparkode-core/api"
 )
 
-type RuncodeResponse struct {
-	Output string `json:"output"`
+type PingResponse struct {
+	Message string `json:"message"`
+}
+
+type ExecuteCodeRequest struct {
+	Code     string `json:"code"`
+	Language string `json:"language"`
+	Input    string `json:"input"`
+}
+
+type ExecuteCodeResponse struct {
+	Status    bool    `json:"status"`
+	Output    string  `json:"output"`
+	TimeTaken float32 `json:"time_taken"`
+}
+
+type ExecuteCodeError struct {
+	Error string `json:"error"`
+}
+
+func PingHandler(rw http.ResponseWriter, req *http.Request) {
+	pingResponse := PingResponse{Message: "pong"}
+	api.Success(rw, http.StatusOK, pingResponse)
 }
 
 func RuncodeHandler(rw http.ResponseWriter, req *http.Request) {
-	response := RuncodeResponse{Output: "output"}
-
-	respBytes, err := json.Marshal(response)
+	var executeCodeRequest ExecuteCodeRequest
+	err := json.NewDecoder(req.Body).Decode(&executeCodeRequest)
 	if err != nil {
-		logger.WithField("err", err.Error()).Error("Error marshalling ping response")
-		rw.WriteHeader(http.StatusInternalServerError)
+		api.Error(rw, http.StatusBadRequest, ExecuteCodeError{Error: "incorrect request body"})
+		return
 	}
 
-	rw.Header().Add("Content-Type", "application/json")
-	rw.Write(respBytes)
+	if executeCodeRequest.Language == "" || executeCodeRequest.Code == "" {
+		api.Error(rw, http.StatusBadRequest, ExecuteCodeError{Error: "language/program field must not be empty"})
+		return
+	}
+
+	var executeCodeResponse ExecuteCodeResponse
+	api.Success(rw, http.StatusOK, executeCodeResponse)
 }

@@ -7,10 +7,6 @@ import (
 	"github.com/joshsoftware/sparkode-core/app"
 )
 
-type Response struct {
-	Message string `json:"message"`
-}
-
 func Error(rw http.ResponseWriter, status int, response interface{}) {
 	respBytes, err := json.Marshal(response)
 	if err != nil {
