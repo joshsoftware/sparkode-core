@@ -30,10 +30,15 @@ func RuncodeHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	start := time.Now()
-	languageSpecs := isolate.SupportedLanguageSpecs[executeCodeRequest.ID]
+	languageSpecs, ok := isolate.SupportedLanguageSpecs[executeCodeRequest.ID]
+	if !ok {
+		api.Error(rw, http.StatusBadRequest, model.ExecuteCodeError{Error: "requested language doesnot exist"})
+		return
+	}
+
 	stdout, stderr, err := isolate.Run(context.Background(), languageSpecs, executeCodeRequest)
 	if err != nil {
-		api.Error(rw, http.StatusInternalServerError, model.ExecuteCodeError{Error: "internal server error"})
+		api.Error(rw, http.StatusInternalServerError, model.ExecuteCodeError{Error: err.Error()})
 		return
 	}
 

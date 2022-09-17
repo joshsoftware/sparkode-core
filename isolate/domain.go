@@ -20,7 +20,7 @@ var (
 
 func GenerateRandomID() (boxID string) {
 	min := 1
-	max := 9999999999
+	max := 99999
 
 	rand.Seed(time.Now().UnixNano())
 	v := rand.Intn(max-min+1) + min
@@ -67,7 +67,7 @@ var SupportedLanguageSpecs = map[int]LanguageDetails{
 	},
 }
 
-//needs filepath as input /var/local/lib/source/1/
+// needs filepath as input /var/local/lib/source/1/
 func InitializeFile(path string) (err error) {
 	files := []string{STDIN_FILE_NAME,
 		STDOUT_FILE_NAME,

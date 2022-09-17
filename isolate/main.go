@@ -24,19 +24,22 @@ func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteC
 
 	_, err = exec.Command(isolateCommand, "--init", "--cg", "-b", boxID).Output()
 	if err != nil {
-		logger.Debug(ctx, "Isolate : Failed Run", err.Error())
+		logger.Warn(ctx, "Isolate : Failed Run", err.Error())
+		err = fmt.Errorf("error occured while initiating isolate : %s", err.Error())
 		return
 	}
 
-	boxDirPath := fmt.Sprintf("%s/%s", workdir, boxID)
+	boxDirPath := fmt.Sprintf("%s%s", workdir, boxID)
 	// initialize files
 	err = InitializeFile(boxDirPath)
 	if err != nil {
+		err = fmt.Errorf("error occured while initializing files : %s", err.Error())
 		return
 	}
 
 	err = CreateSourceFilesForInterpreted(langSpecs, codeData, boxDirPath)
 	if err != nil {
+		err = fmt.Errorf("error occured while creating source files : %s", err.Error())
 		return
 	}
 
@@ -50,6 +53,7 @@ func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteC
 	out, errout, err := Shellout(command)
 	if err != nil {
 		log.Printf("error: %v\n", err)
+		err = fmt.Errorf("error occured while creating final command  : %s", err.Error())
 		return
 	}
 	fmt.Println("--- stdout ---")
@@ -60,12 +64,14 @@ func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteC
 	stdoutFilePath := fmt.Sprintf("%s/%s", boxDirPath, STDOUT_FILE_NAME)
 	stdout, err = ReadFromFile(stdoutFilePath)
 	if err != nil {
+		err = fmt.Errorf("error occured while reading from stdout  : %s", err.Error())
 		return
 	}
 
 	stderrFilePath := fmt.Sprintf("%s/%s", boxDirPath, STDERR_FILE_NAME)
 	stderr, err = ReadFromFile(stderrFilePath)
 	if err != nil {
+		err = fmt.Errorf("error occured while reading from stderr  : %s", err.Error())
 		return
 	}
 
@@ -91,7 +97,7 @@ func createCMD(cfg config.RunConfig, workdir, boxId string) string {
 	return cmd
 }
 
-//First Param: languageSpecs, 2nd argument: boxpath
+// First Param: languageSpecs, 2nd argument: boxpath
 func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.ExecuteCodeRequest, boxPath string) (err error) {
 
 	//Create code script
