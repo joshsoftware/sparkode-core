@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/joshsoftware/sparkode-core/api"
 	"github.com/joshsoftware/sparkode-core/isolate"
@@ -27,15 +28,39 @@ func RuncodeHandler(rw http.ResponseWriter, req *http.Request) {
 		api.Error(rw, http.StatusBadRequest, model.ExecuteCodeError{Error: "language/program field must not be empty"})
 		return
 	}
+
+	start := time.Now()
+	languageSpecs, ok := isolate.SupportedLanguageSpecs[executeCodeRequest.ID]
+	if !ok {
+		api.Error(rw, http.StatusBadRequest, model.ExecuteCodeError{Error: "requested language doesnot exist"})
+		return
+	}
+
 	jobType, ok := isolate.LanguageNameToJobType[executeCodeRequest.Language]
 	if !ok {
 		api.Error(rw, http.StatusBadRequest, model.ExecuteCodeError{Error: "invalid job type"})
 		return
 	}
 
-	languageSpecs := isolate.SupportedLanguageSpecs[executeCodeRequest.ID]
-	isolate.Run(context.Background(), jobType, languageSpecs, executeCodeRequest)
+	stdout, stderr, err := isolate.Run(context.Background(), jobType, languageSpecs, executeCodeRequest)
+	if err != nil {
+		api.Error(rw, http.StatusInternalServerError, model.ExecuteCodeError{Error: err.Error()})
+		return
+	}
 
+	timeTaken := time.Since(start)
 	var executeCodeResponse model.ExecuteCodeResponse
+
+	executeCodeResponse.TimeTaken = float32(timeTaken.Seconds())
+
+	if stderr != "" {
+		executeCodeResponse.Output = ""
+		executeCodeResponse.Status = false
+		api.Success(rw, http.StatusOK, executeCodeResponse)
+	}
+
+	executeCodeResponse.Status = true
+	executeCodeResponse.Output = stdout
+
 	api.Success(rw, http.StatusOK, executeCodeResponse)
 }

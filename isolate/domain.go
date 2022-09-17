@@ -3,6 +3,8 @@ package isolate
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"math/rand"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +20,7 @@ var (
 
 func GenerateRandomID() (boxID string) {
 	min := 1
-	max := 9999999999
+	max := 99999
 
 	rand.Seed(time.Now().UnixNano())
 	v := rand.Intn(max-min+1) + min
@@ -83,7 +85,7 @@ var SupportedLanguageSpecs = map[int]LanguageDetails{
 }
 
 // needs filepath as input /var/local/lib/source/1/
-func InitializeFile(path string) {
+func InitializeFile(path string) (err error) {
 	files := []string{STDIN_FILE_NAME,
 		STDOUT_FILE_NAME,
 		STDERR_FILE_NAME,
@@ -92,16 +94,17 @@ func InitializeFile(path string) {
 	}
 	for _, fileName := range files {
 		fileName = filepath.Join(path, filepath.Base(fileName))
-		_, err := exec.Command("touch", fileName).Output()
+		_, err = exec.Command("touch", fileName).Output()
 		if err != nil {
 			logger.Debug("Failed to Initialize File", fileName)
+			return
 		}
 		logger.Debug("created file at " + fileName)
 	}
-
+	return
 }
 
-func Cleanup(ctx context.Context, boxId string) {
+func Cleanup(ctx context.Context, boxId string) (err error) {
 	dirBytes, err := exec.Command(isolateCommand, "--cg", "-b", boxId, "--cleanup").Output()
 	if err != nil {
 		logger.Debug(ctx, "Isolate : Failed Cleanup", err.Error())
@@ -110,4 +113,16 @@ func Cleanup(ctx context.Context, boxId string) {
 	}
 	fmt.Println("cleanup done")
 	fmt.Println(string(dirBytes))
+	return
+}
+
+func ReadFromFile(filePath string) (output string, err error) {
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	output = string(content)
+	return
 }
