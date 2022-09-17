@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"os/exec"
+	"time"
 	"path/filepath"
-	"strconv"
 
 	"github.com/joshsoftware/sparkode-core/config"
 	logger "github.com/sirupsen/logrus"
@@ -27,19 +26,105 @@ var (
 	isolateCommand string = "isolate"
 )
 
-func Run(ctx context.Context, sourceFile string) (string, error) {
-	boxId := strconv.Itoa(rand.Intn(200-1) + 1)
+type LanguageDetails struct {
+	ID             int
+	Name           string
+	SourceFile     string
+	CompileCommand string
+	RunCommand     string
+}
+
+var SupportedLanguage map[int]LanguageDetails = map[int]LanguageDetails{
+	1: {
+		ID:         1,
+		Name:       "Ruby (2.7.0)",
+		SourceFile: "script.rb",
+		RunCommand: "/usr/local/ruby-2.7.0/bin/ruby script.rb",
+	},
+	2: {
+		ID:             2,
+		Name:           "Go (1.19.1)",
+		SourceFile:     "main.go",
+		CompileCommand: "GOCACHE=/tmp/.cache/go-build /usr/local/go-1.19.1/bin/go build %s main.go",
+		RunCommand:     "./main",
+	},
+}
+
+// 1. Initialise isolate
+// isolate --cg -b 1 --init
+
+// cd /var/local/lib/isolate/1
+
+// 2. Initilialize files
+// touch stdin.txt
+// touch stdout.txt
+// touch stderr.txt
+
+// 3. Put code input in stdin
+// cd box
+
+// 4. Create script.rb and run inside box
+// echo "puts 'hello'" >> script.rb
+// echo "/usr/local/ruby-2.7.0/bin/ruby script.rb" >> run
+
+// cd ~
+
+// 5. Run isolate
+// isolate --cg -s -b 1 -M /var/local/lib/isolate/1/metadata.txt -t 5.0 -x 1.0 -w 10.0 -k 64000 -p60 --cg-timing --cg-mem=128000 -f 1024 -E HOME=/tmp -E PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" -E LANG -E LANGUAGE -E LC_ALL -E JUDGE0_HOMEPAGE -E JUDGE0_SOURCE_CODE -E JUDGE0_MAINTAINER -E JUDGE0_VERSION -d /etc:noexec --run -- /bin/bash run < /var/local/lib/isolate/1/stdin.txt > /var/local/lib/isolate/1/stdout.txt 2> /var/local/lib/isolate/1/stderr.txt
+
+
+
+func Run(ctx context.Context, code string, input string, langSpecs LanguageDetails) (string, error) {
+	rand.Seed(time.Now().UnixNano())	
+	v := rand.Int()
+	boxId := fmt.Sprintf("%v", v)
+
 	defer func() {
 		fmt.Println("running cleanup")
-		Cleanup(ctx, boxId)
+		// Cleanup(ctx, boxId)
 	}()
-	_, err := exec.Command(isolateCommand, "--init", "--cg", "-b", boxId).Output()
-	if err != nil {
-		logger.Debug(ctx, "Isolate : Failed Run", err.Error())
-	}
 
+	fmt.Println("Step 1")
+	// 1. Initialise isolate
+
+	initComand := fmt.Sprintf("isolate --cg -b %s --init",boxId)
+	fmt.Println(initComand)
+	err, out, errout := Shellout(initComand)
+	if err != nil {
+		log.Printf("error: %v\n", err)
+	}
+// rr, err := exec.Command(isolateCommand, "--cg", "-b", boxId, "--init").Output()
+// 	if err != nil {
+// 		logger.Debug(ctx, "Isolate : Failed Run", err.Error())
+// 	}
+
+	fmt.Println("Output : ", string(out))
+	fmt.Println("Output : ", err)
+	fmt.Println("Output : ", errout)
+	fmt.Println("Step 2")
+
+	// 2. Initilialize files
 	// initialize files
 	InitializeFile(boxId)
+
+	//4. Create script.rb and run inside box
+	fmt.Println("Step 3")
+	
+	fileName := filepath.Join(workdir,"box", filepath.Base(langSpecs.SourceFile))
+	_, err = exec.Command("touch", fileName).Output()
+	if err != nil {
+		logger.Debug("Failed to InitializeFile script.rb", fileName)
+	}
+
+	fmt.Println("Step 4")
+
+	fileName = filepath.Join(workdir,"box", filepath.Base("run"))
+	_, err = exec.Command("touch", fileName).Output()
+	if err != nil {
+		logger.Debug("Failed to InitializeFile", fileName)
+	}
+
+	fmt.Println("Step 5")
 
 	// copy all files to this dir
 	runCfg := config.RunConfig{
@@ -47,12 +132,15 @@ func Run(ctx context.Context, sourceFile string) (string, error) {
 		WallLimit:   10.2,
 		MemoryLimit: 128000,
 	}
-	tmp := os.TempDir()
 
-	metaFile := filepath.Join(tmp, "meta.txt")
-	command := createCMD(runCfg, filepath.Join(workdir, boxId), metaFile, sourceFile)
+	fmt.Println("Step 6")
 
-	err, out, errout := Shellout(command)
+	command := createCMD(runCfg, filepath.Join(workdir, boxId), fileName, boxId)
+
+	fmt.Println("Step 7")
+
+	fmt.Println("Final Command : ", command)
+	err, out, errout = Shellout(command)
 	if err != nil {
 		log.Printf("error: %v\n", err)
 	}
@@ -88,10 +176,10 @@ func Shellout(command string) (error, string, string) {
 }
 
 // create command to --run
-func createCMD(cfg config.RunConfig, workdir, metaFile, sourceFile string) string {
+func createCMD(cfg config.RunConfig, workdir, sourceFile, boxId string) string {
 
 	cmd := fmt.Sprintf(
-		"isolate --cg -s -b 1 -M %s/metadata.txt -t %.1f -x 1.0 -w %.1f -k 64000 -p60 --cg-timing --cg-mem=%d -f 1024 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"  -d /etc:noexec --run -- /bin/bash %s < %s/stdin.txt > %s/stdout.txt 2> %s/stderr.txt", workdir, cfg.TimeLimit, cfg.WallLimit, cfg.MemoryLimit, sourceFile, workdir, workdir, workdir)
+		"isolate --cg -s -b %s -M %s/metadata.txt -t %.1f -x 1.0 -w %.1f -k 64000 -p60 --cg-timing --cg-mem=%d -f 1024 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"  -d /etc:noexec --run -- /bin/bash %s < %s/stdin.txt > %s/stdout.txt 2> %s/stderr.txt",boxId, workdir, cfg.TimeLimit, cfg.WallLimit, cfg.MemoryLimit, sourceFile, workdir, workdir, workdir)
 
 	return cmd
 }

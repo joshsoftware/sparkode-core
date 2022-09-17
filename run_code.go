@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"context"
+	"github.com/joshsoftware/sparkode-core/isolateutil"
 )
 
 const ShellToUse = "bash"
@@ -20,15 +22,7 @@ func Shellout(command string) (error, string, string) {
 	return err, stdout.String(), stderr.String()
 }
 
-type LanguageDetails struct {
-	ID             int
-	Name           string
-	SourceFile     string
-	CompileCommand string
-	RunCommand     string
-}
-
-var SupportedLanguage map[int]LanguageDetails = map[int]LanguageDetails{
+var SupportedLanguage map[int]isolateutil.LanguageDetails = map[int]isolateutil.LanguageDetails{
 	1: {
 		ID:         1,
 		Name:       "Ruby (2.7.0)",
@@ -63,7 +57,7 @@ var (
 	IsolateCommandToRunExecutable     string = "isolate --cg -s -b %s -M /var/local/lib/isolate/5/metadata.txt -t 5.0 -x 1.0 -w 10.0 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\" -d /etc:noexec --run -- /bin/bash run < /var/local/lib/isolate/%s/stdin.txt > /var/local/lib/isolate/%s/stdout.txt 2> /var/local/lib/isolate/%s/stderr.txt"
 )
 
-func execute(code string, input string, langSpecs LanguageDetails, boxNum string) {
+func execute(code string, input string, langSpecs isolateutil.LanguageDetails, boxNum string) {
 
 	if langSpecs.CompileCommand != "" {
 		executeCompiledCode(code, input, langSpecs, boxNum)
@@ -72,7 +66,7 @@ func execute(code string, input string, langSpecs LanguageDetails, boxNum string
 	executeInterpretedCode(code, input, langSpecs, boxNum)
 }
 
-func executeCompiledCode(code string, input string, langSpecs LanguageDetails, boxNum string) {
+func executeCompiledCode(code string, input string, langSpecs isolateutil.LanguageDetails, boxNum string) {
 
 	//step 1: init isolate
 
@@ -166,7 +160,7 @@ func executeCompiledCode(code string, input string, langSpecs LanguageDetails, b
 	fmt.Println("Out : ", string(out))
 }
 
-func executeInterpretedCode(code string, input string, langSpecs LanguageDetails, boxNum string) {
+func executeInterpretedCode(code string, input string, langSpecs isolateutil.LanguageDetails, boxNum string) {
 	//step 1: init isolate
 
 	initIsolate := fmt.Sprintf(InitIsolate, boxNum)
@@ -269,16 +263,19 @@ func executeCommand(command string) (output string, err error) {
 	return
 }
 
-// func main() {
+func main() {
 
-// 	code := "puts 'hello'"
-// 	boxNum := "1"
-// 	input := ""
+	 code := "puts 'hello'"
+	//  boxNum := "1"
+	 input := ""
 
-// 	langSpecs := SupportedLanguage[1]
-// 	if runtime.GOOS == "windows" {
-// 		fmt.Println("Can't Execute this on a windows machine")
-// 	} else {
-// 		execute(code, input, langSpecs, boxNum)
-// 	}
-// }
+	langSpecs := SupportedLanguage[1]
+	// if runtime.GOOS == "windows" {
+	// 	fmt.Println("Can't Execute this on a windows machine")
+	// } else {
+	// 	execute(code, input, langSpecs, boxNum)
+	// }
+
+	ctx := context.Background()
+	isolateutil.Run(ctx, code,input,langSpecs )
+}
