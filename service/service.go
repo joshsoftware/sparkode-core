@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type service interface {
+type Service interface {
 	Run(context.Context, string, string, string) (string, error)
 }
 
@@ -27,4 +27,10 @@ func (s *runService) Run(ctx context.Context, code string, language string, inpu
 		return output, err
 	}
 	return output, nil
+}
+
+func NewService(l *zap.SugaredLogger) Service {
+	return &runService{
+		logger: l,
+	}
 }

@@ -7,3 +7,5 @@ services:
     volumes:
       - ./:/app
     privileged: true
+    ports:
+      - 8080:80

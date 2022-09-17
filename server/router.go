@@ -9,11 +9,11 @@ import (
 )
 
 /* The routing mechanism. Mux helps us define handler functions and the access methods */
-func InitRouter() (router *mux.Router) {
+func InitRouter(dep dependencies) (router *mux.Router) {
 	router = mux.NewRouter()
 
 	router.HandleFunc("/ping", handler.PingHandler).Methods(http.MethodGet)
-	router.HandleFunc("/executeCode", handler.RuncodeHandler).Methods(http.MethodPost)
+	router.HandleFunc("/executeCode", handler.RuncodeHandler(dep.RunService)).Methods(http.MethodPost)
 
 	return
 }

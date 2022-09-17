@@ -43,9 +43,13 @@ func main() {
 }
 
 func startApp() (err error) {
+	dependencies, err := server.InitDependencies()
+	if err != nil {
+		panic(err)
+	}
 
 	// mux router
-	router := server.InitRouter()
+	router := server.InitRouter(dependencies)
 
 	// init web server
 	server := negroni.Classic()

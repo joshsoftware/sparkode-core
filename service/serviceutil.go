@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"os"
 	"strings"
 )
@@ -17,7 +18,7 @@ func createFile(code string, lang string) (*os.File, error) {
 	if err != nil {
 		return f, err
 	}
-
+	fmt.Println("file created")
 	lines := strings.Split(code, "\n")
 	for _, line := range lines {
 		f.WriteString(line + "\n")
