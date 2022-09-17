@@ -43,15 +43,15 @@ type LanguageDetails struct {
 //	LanguageRuby: {
 //		ID:         1,
 //		Name:       "Ruby (2.7.0)",
-//		SourceFile: "sourceCode.rb",
-//		RunCommand: "/usr/local/ruby-2.7.0/bin/ruby sourceCode.rb",
+//		SourceFile: "script.rb",
+//		RunCommand: "/usr/local/ruby-2.7.0/bin/ruby script.rb",
 //	},
 //	LanguageGo: {
 //		ID:             2,
 //		Name:           "Go (1.19.1)",
-//		SourceFile:     "sourceCode.go",
-//		CompileCommand: "GOCACHE=/tmp/.cache/go-build /usr/local/go-1.19.1/bin/go build %s sourceCode.go",
-//		RunCommand:     "./sourceCode",
+//		SourceFile:     "main.go",
+//		CompileCommand: "GOCACHE=/tmp/.cache/go-build /usr/local/go-1.19.1/bin/go build %s main.go",
+//		RunCommand:     "./main",
 //	},
 //}
 
