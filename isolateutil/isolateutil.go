@@ -1,22 +1,22 @@
-package isolate
+package isolateutil
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/joshsoftware/sparkode-core/config"
-	logger "github.com/sirupsen/logrus"
 	"log"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+
+	"github.com/joshsoftware/sparkode-core/config"
+	logger "github.com/sirupsen/logrus"
 )
 
 const (
 	workdir            = "/var/local/lib/isolate/"
-	sourceFile         = "run"
 	STDIN_FILE_NAME    = "stdin.txt"
 	STDOUT_FILE_NAME   = "stdout.txt"
 	STDERR_FILE_NAME   = "stderr.txt"
@@ -27,7 +27,7 @@ var (
 	isolateCommand string = "isolate"
 )
 
-func Run(ctx context.Context) {
+func Run(ctx context.Context, sourceFile string) (string, error) {
 	boxId := strconv.Itoa(rand.Intn(200-1) + 1)
 	defer func() {
 		fmt.Println("running cleanup")
@@ -50,7 +50,7 @@ func Run(ctx context.Context) {
 	tmp := os.TempDir()
 
 	metaFile := filepath.Join(tmp, "meta.txt")
-	command := createCMD(runCfg, filepath.Join(workdir, boxId), metaFile)
+	command := createCMD(runCfg, filepath.Join(workdir, boxId), metaFile, sourceFile)
 
 	err, out, errout := Shellout(command)
 	if err != nil {
@@ -61,7 +61,7 @@ func Run(ctx context.Context) {
 	fmt.Println("--- stderr ---")
 	fmt.Println(errout)
 	fmt.Println("created box", boxId)
-	return
+	return "", err
 }
 
 func Cleanup(ctx context.Context, boxId string) {
@@ -88,7 +88,7 @@ func Shellout(command string) (error, string, string) {
 }
 
 // create command to --run
-func createCMD(cfg config.RunConfig, workdir, metaFile string) string {
+func createCMD(cfg config.RunConfig, workdir, metaFile, sourceFile string) string {
 
 	cmd := fmt.Sprintf(
 		"isolate --cg -s -b 1 -M %s/metadata.txt -t %.1f -x 1.0 -w %.1f -k 64000 -p60 --cg-timing --cg-mem=%d -f 1024 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"  -d /etc:noexec --run -- /bin/bash %s < %s/stdin.txt > %s/stdout.txt 2> %s/stderr.txt", workdir, cfg.TimeLimit, cfg.WallLimit, cfg.MemoryLimit, sourceFile, workdir, workdir, workdir)

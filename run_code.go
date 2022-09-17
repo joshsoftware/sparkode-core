@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 )
 
 const ShellToUse = "bash"
@@ -270,16 +269,16 @@ func executeCommand(command string) (output string, err error) {
 	return
 }
 
-func main() {
+// func main() {
 
-	code := "puts 'hello'"
-	boxNum := "1"
-	input := ""
+// 	code := "puts 'hello'"
+// 	boxNum := "1"
+// 	input := ""
 
-	langSpecs := SupportedLanguage[1]
-	if runtime.GOOS == "windows" {
-		fmt.Println("Can't Execute this on a windows machine")
-	} else {
-		execute(code, input, langSpecs, boxNum)
-	}
-}
+// 	langSpecs := SupportedLanguage[1]
+// 	if runtime.GOOS == "windows" {
+// 		fmt.Println("Can't Execute this on a windows machine")
+// 	} else {
+// 		execute(code, input, langSpecs, boxNum)
+// 	}
+// }

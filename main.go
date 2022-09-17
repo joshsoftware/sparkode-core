@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/joshsoftware/sparkode-core/config"
-	"github.com/joshsoftware/sparkode-core/service"
+	"github.com/joshsoftware/sparkode-core/server"
 
 	logger "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
@@ -45,7 +45,7 @@ func main() {
 func startApp() (err error) {
 
 	// mux router
-	router := service.InitRouter()
+	router := server.InitRouter()
 
 	// init web server
 	server := negroni.Classic()
