@@ -4,42 +4,34 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/joshsoftware/sparkode-core/config"
-	logger "github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/joshsoftware/sparkode-core/config"
+	"github.com/joshsoftware/sparkode-core/model"
+	logger "github.com/sirupsen/logrus"
 )
 
-const (
-	workdir            = "/var/local/lib/isolate/"
-	sourceFile         = "run"
-	STDIN_FILE_NAME    = "stdin.txt"
-	STDOUT_FILE_NAME   = "stdout.txt"
-	STDERR_FILE_NAME   = "stderr.txt"
-	METADATA_FILE_NAME = "metadata.txt"
-)
+func Run(ctx context.Context, code string, input string, langSpecs LanguageDetails, codeData model.ExecuteCodeRequest) {
 
-var (
-	isolateCommand string = "isolate"
-)
-
-func Run(ctx context.Context) {
-	boxId := "10"
+	boxID := GenerateRandomID()
 	defer func() {
 		fmt.Println("running cleanup")
-		//Cleanup(ctx, boxId)
+		Cleanup(ctx, boxID)
 	}()
-	_, err := exec.Command(isolateCommand, "--init", "--cg", "-b", boxId).Output()
+
+	_, err := exec.Command(isolateCommand, "--init", "--cg", "-b", boxID).Output()
 	if err != nil {
 		logger.Debug(ctx, "Isolate : Failed Run", err.Error())
 	}
 
+	boxDirPath := fmt.Sprintf("%s/%s", workdir, boxID)
 	// initialize files
-	InitializeFile(boxId)
+	InitializeFile(boxDirPath)
 
-	CreateSourceFile("script.rb", boxId)
+	CreateSourceFilesForInterpreted(langSpecs, codeData, boxDirPath)
 
 	runCfg := config.RunConfig{
 		TimeLimit:   5.0,
@@ -47,7 +39,7 @@ func Run(ctx context.Context) {
 		MemoryLimit: 128000,
 	}
 
-	command := createCMD(runCfg, filepath.Join(workdir, boxId), boxId)
+	command := createCMD(runCfg, filepath.Join(workdir, boxID), boxID)
 
 	err, out, errout := Shellout(command)
 	if err != nil {
@@ -57,31 +49,18 @@ func Run(ctx context.Context) {
 	fmt.Println(out)
 	fmt.Println("--- stderr ---")
 	fmt.Println(errout)
-	fmt.Println("created box", boxId)
+	fmt.Println("created box", boxID)
 	return
 }
 
-func Cleanup(ctx context.Context, boxId string) {
-	dirBytes, err := exec.Command(isolateCommand, "--cg", "-b", boxId, "--cleanup").Output()
-	if err != nil {
-		logger.Debug(ctx, "Isolate : Failed Cleanup", err.Error())
-		fmt.Println("cleanup failed", err.Error())
-		return
-	}
-	fmt.Println("cleanup done")
-	fmt.Println(string(dirBytes))
-}
-
-const ShellToUse = "bash"
-
-func Shellout(command string) (error, string, string) {
+func Shellout(command string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(ShellToUse, "-c", command)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
-	return err, stdout.String(), stderr.String()
+	return stdout.String(), stderr.String(), err
 }
 
 // create command to --run
@@ -93,48 +72,42 @@ func createCMD(cfg config.RunConfig, workdir, boxId string) string {
 	return cmd
 }
 
-func InitializeFile(boxId string) {
-	files := []string{STDIN_FILE_NAME,
-		STDOUT_FILE_NAME,
-		STDERR_FILE_NAME,
-		METADATA_FILE_NAME,
-	}
-	for _, fileName := range files {
-		fileName = filepath.Join(workdir, boxId, filepath.Base(fileName))
-		_, err := exec.Command("touch", fileName).Output()
-		if err != nil {
-			logger.Debug("Failed to InitializeFile", fileName)
-		}
-		logger.Debug("crated file at " + fileName)
-	}
+//First Param: languageSpecs, 2nd argument: boxpath
+func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.ExecuteCodeRequest, boxPath string) {
 
-}
-
-func CreateSourceFile(fileName, boxId string) {
-	fileName = filepath.Join(workdir, boxId, "box", filepath.Base(fileName))
+	//Create code script
+	fileName := filepath.Join(boxPath, "box", filepath.Base(langSpecs.SourceFile))
 	_, err := exec.Command("touch", fileName).Output()
 	if err != nil {
-		fmt.Println("Failed to InitializeFile", fileName)
+		fmt.Println("Failed to Initialize File : ", fileName)
 	}
-	fmt.Println("crated file at ", fileName)
-	d1 := []byte("puts 'devdoot'")
-	err = os.WriteFile(fileName, d1, 0644)
-	if err != nil {
-		fmt.Println("Failed to InitializeFile", fileName)
-	}
-	fmt.Println("crated file at ", fileName)
+	fmt.Println("Created file : ", fileName)
 
-	//////////////
-	fileName = filepath.Join(workdir, boxId, "box", filepath.Base("run"))
+	code := codeData.Code
+	err = os.WriteFile(fileName, []byte(code), 0644)
+	if err != nil {
+		fmt.Println("Failed to Initialize File :", fileName)
+	}
+	fmt.Println("Created File : ", fileName)
+
+	//Create run file
+	fileName = filepath.Join(boxPath, "box", filepath.Base("run"))
 	_, err = exec.Command("touch", fileName).Output()
 	if err != nil {
 		fmt.Println("Failed to InitializeFile", fileName)
 	}
-	fmt.Println("crated file at ", fileName)
-	d1 = []byte("/usr/local/ruby-2.7.0/bin/ruby script.rb")
-	err = os.WriteFile(fileName, d1, 0644)
+	fmt.Println("Created File : ", fileName)
+
+	runCommand := langSpecs.RunCommand
+	err = os.WriteFile(fileName, []byte(runCommand), 0644)
 	if err != nil {
 		fmt.Println("Failed to InitializeFile", fileName)
 	}
-	fmt.Println("crated file at ", fileName)
+
+	//write input into file
+	inputFileName := filepath.Join(boxPath, filepath.Base(STDIN_FILE_NAME))
+	err = os.WriteFile(inputFileName, []byte(codeData.Input), 0644)
+	if err != nil {
+		fmt.Println("Failed to InitializeFile", fileName)
+	}
 }
