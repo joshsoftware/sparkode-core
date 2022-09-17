@@ -14,7 +14,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteCodeRequest) {
+func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteCodeRequest) (stdout string, stderr string, err error) {
 
 	boxID := GenerateRandomID()
 	defer func() {
@@ -22,16 +22,23 @@ func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteC
 		Cleanup(ctx, boxID)
 	}()
 
-	_, err := exec.Command(isolateCommand, "--init", "--cg", "-b", boxID).Output()
+	_, err = exec.Command(isolateCommand, "--init", "--cg", "-b", boxID).Output()
 	if err != nil {
 		logger.Debug(ctx, "Isolate : Failed Run", err.Error())
+		return
 	}
 
 	boxDirPath := fmt.Sprintf("%s/%s", workdir, boxID)
 	// initialize files
-	InitializeFile(boxDirPath)
+	err = InitializeFile(boxDirPath)
+	if err != nil {
+		return
+	}
 
-	CreateSourceFilesForInterpreted(langSpecs, codeData, boxDirPath)
+	err = CreateSourceFilesForInterpreted(langSpecs, codeData, boxDirPath)
+	if err != nil {
+		return
+	}
 
 	runCfg := config.RunConfig{
 		TimeLimit:   5.0,
@@ -40,16 +47,28 @@ func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteC
 	}
 
 	command := createCMD(runCfg, filepath.Join(workdir, boxID), boxID)
-
 	out, errout, err := Shellout(command)
 	if err != nil {
 		log.Printf("error: %v\n", err)
+		return
 	}
 	fmt.Println("--- stdout ---")
 	fmt.Println(out)
 	fmt.Println("--- stderr ---")
 	fmt.Println(errout)
-	fmt.Println("created box", boxID)
+
+	stdoutFilePath := fmt.Sprintf("%s/%s", boxDirPath, STDOUT_FILE_NAME)
+	stdout, err = ReadFromFile(stdoutFilePath)
+	if err != nil {
+		return
+	}
+
+	stderrFilePath := fmt.Sprintf("%s/%s", boxDirPath, STDERR_FILE_NAME)
+	stderr, err = ReadFromFile(stderrFilePath)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -73,13 +92,14 @@ func createCMD(cfg config.RunConfig, workdir, boxId string) string {
 }
 
 //First Param: languageSpecs, 2nd argument: boxpath
-func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.ExecuteCodeRequest, boxPath string) {
+func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.ExecuteCodeRequest, boxPath string) (err error) {
 
 	//Create code script
 	fileName := filepath.Join(boxPath, "box", filepath.Base(langSpecs.SourceFile))
-	_, err := exec.Command("touch", fileName).Output()
+	_, err = exec.Command("touch", fileName).Output()
 	if err != nil {
 		fmt.Println("Failed to Initialize File : ", fileName)
+		return
 	}
 	fmt.Println("Created file : ", fileName)
 
@@ -87,6 +107,7 @@ func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.E
 	err = os.WriteFile(fileName, []byte(code), 0644)
 	if err != nil {
 		fmt.Println("Failed to Initialize File :", fileName)
+		return
 	}
 	fmt.Println("Created File : ", fileName)
 
@@ -95,6 +116,7 @@ func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.E
 	_, err = exec.Command("touch", fileName).Output()
 	if err != nil {
 		fmt.Println("Failed to InitializeFile", fileName)
+		return
 	}
 	fmt.Println("Created File : ", fileName)
 
@@ -102,6 +124,7 @@ func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.E
 	err = os.WriteFile(fileName, []byte(runCommand), 0644)
 	if err != nil {
 		fmt.Println("Failed to InitializeFile", fileName)
+		return
 	}
 
 	//write input into file
@@ -109,5 +132,7 @@ func CreateSourceFilesForInterpreted(langSpecs LanguageDetails, codeData model.E
 	err = os.WriteFile(inputFileName, []byte(codeData.Input), 0644)
 	if err != nil {
 		fmt.Println("Failed to InitializeFile", fileName)
+		return
 	}
+	return
 }
