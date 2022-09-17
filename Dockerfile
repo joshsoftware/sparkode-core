@@ -23,3 +23,7 @@ RUN set -xe && \
 
 RUN mkdir /app
 WORKDIR /app
+COPY go.mod go.sum ./
+COPY . .
+RUN /usr/local/go-1.19.1/bin/go build
+CMD ./sparkode-core start
