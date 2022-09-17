@@ -7,11 +7,9 @@ import (
 	"github.com/joshsoftware/sparkode-core/config"
 	logger "github.com/sirupsen/logrus"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 )
 
 const (
@@ -28,10 +26,10 @@ var (
 )
 
 func Run(ctx context.Context) {
-	boxId := strconv.Itoa(rand.Intn(200-1) + 1)
+	boxId := "10"
 	defer func() {
 		fmt.Println("running cleanup")
-		Cleanup(ctx, boxId)
+		//Cleanup(ctx, boxId)
 	}()
 	_, err := exec.Command(isolateCommand, "--init", "--cg", "-b", boxId).Output()
 	if err != nil {
@@ -41,16 +39,15 @@ func Run(ctx context.Context) {
 	// initialize files
 	InitializeFile(boxId)
 
-	// copy all files to this dir
+	CreateSourceFile("script.rb", boxId)
+
 	runCfg := config.RunConfig{
 		TimeLimit:   5.0,
 		WallLimit:   10.2,
 		MemoryLimit: 128000,
 	}
-	tmp := os.TempDir()
 
-	metaFile := filepath.Join(tmp, "meta.txt")
-	command := createCMD(runCfg, filepath.Join(workdir, boxId), metaFile)
+	command := createCMD(runCfg, filepath.Join(workdir, boxId), boxId)
 
 	err, out, errout := Shellout(command)
 	if err != nil {
@@ -88,10 +85,10 @@ func Shellout(command string) (error, string, string) {
 }
 
 // create command to --run
-func createCMD(cfg config.RunConfig, workdir, metaFile string) string {
+func createCMD(cfg config.RunConfig, workdir, boxId string) string {
 
 	cmd := fmt.Sprintf(
-		"isolate --cg -s -b 1 -M %s/metadata.txt -t %.1f -x 1.0 -w %.1f -k 64000 -p60 --cg-timing --cg-mem=%d -f 1024 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"  -d /etc:noexec --run -- /bin/bash %s < %s/stdin.txt > %s/stdout.txt 2> %s/stderr.txt", workdir, cfg.TimeLimit, cfg.WallLimit, cfg.MemoryLimit, sourceFile, workdir, workdir, workdir)
+		"isolate --cg -s -b %s -M %s/metadata.txt -t %.1f -x 1.0 -w %.1f -k 64000 -p60 --cg-timing --cg-mem=%d -f 1024 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"  -d /etc:noexec --run -- /bin/bash %s < %s/stdin.txt > %s/stdout.txt 2> %s/stderr.txt", boxId, workdir, cfg.TimeLimit, cfg.WallLimit, cfg.MemoryLimit, sourceFile, workdir, workdir, workdir)
 
 	return cmd
 }
@@ -111,4 +108,33 @@ func InitializeFile(boxId string) {
 		logger.Debug("crated file at " + fileName)
 	}
 
+}
+
+func CreateSourceFile(fileName, boxId string) {
+	fileName = filepath.Join(workdir, boxId, "box", filepath.Base(fileName))
+	_, err := exec.Command("touch", fileName).Output()
+	if err != nil {
+		fmt.Println("Failed to InitializeFile", fileName)
+	}
+	fmt.Println("crated file at ", fileName)
+	d1 := []byte("puts 'devdoot'")
+	err = os.WriteFile(fileName, d1, 0644)
+	if err != nil {
+		fmt.Println("Failed to InitializeFile", fileName)
+	}
+	fmt.Println("crated file at ", fileName)
+
+	//////////////
+	fileName = filepath.Join(workdir, boxId, "box", filepath.Base("run"))
+	_, err = exec.Command("touch", fileName).Output()
+	if err != nil {
+		fmt.Println("Failed to InitializeFile", fileName)
+	}
+	fmt.Println("crated file at ", fileName)
+	d1 = []byte("/usr/local/ruby-2.7.0/bin/ruby script.rb")
+	err = os.WriteFile(fileName, d1, 0644)
+	if err != nil {
+		fmt.Println("Failed to InitializeFile", fileName)
+	}
+	fmt.Println("crated file at ", fileName)
 }

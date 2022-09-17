@@ -2,11 +2,21 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/joshsoftware/sparkode-core/isolate"
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
+)
+
+const (
+	workdir                            = "/"
+	STDIN_FILE_NAME                    = "stdin.txt"
+	STDOUT_FILE_NAME                   = "stdout.txt"
+	STDERR_FILE_NAME                   = "stderr.txt"
+	METADATA_FILE_NAME                 = "metadata.txt"
+	ADDITIONAL_FILES_ARCHIVE_FILE_NAME = "additional_files.zip"
 )
 
 const ShellToUse = "bash"
@@ -29,29 +39,29 @@ type LanguageDetails struct {
 	RunCommand     string
 }
 
-var SupportedLanguage map[int]LanguageDetails = map[int]LanguageDetails{
-	1: {
-		ID:         1,
-		Name:       "Ruby (2.7.0)",
-		SourceFile: "script.rb",
-		RunCommand: "/usr/local/ruby-2.7.0/bin/ruby script.rb",
-	},
-	2: {
-		ID:             2,
-		Name:           "Go (1.19.1)",
-		SourceFile:     "main.go",
-		CompileCommand: "GOCACHE=/tmp/.cache/go-build /usr/local/go-1.19.1/bin/go build %s main.go",
-		RunCommand:     "./main",
-	},
-}
+//var SupportedLanguage = map[Language]LanguageDetails{
+//	LanguageRuby: {
+//		ID:         1,
+//		Name:       "Ruby (2.7.0)",
+//		SourceFile: "sourceCode.rb",
+//		RunCommand: "/usr/local/ruby-2.7.0/bin/ruby sourceCode.rb",
+//	},
+//	LanguageGo: {
+//		ID:             2,
+//		Name:           "Go (1.19.1)",
+//		SourceFile:     "sourceCode.go",
+//		CompileCommand: "GOCACHE=/tmp/.cache/go-build /usr/local/go-1.19.1/bin/go build %s sourceCode.go",
+//		RunCommand:     "./sourceCode",
+//	},
+//}
 
 var (
 	InitIsolate      string = "isolate -b %s --init"
 	MoveToIsolateDir string = "cd /var/local/lib/isolate/%s"
 
 	FileSTDIN         string = "/var/local/lib/isolate/1/stdin.txt"
-	FileSTDOUT        string = "/var/local/lib/isolate/1/stdin.txt"
-	FileSTDERR        string = "/var/local/lib/isolate/1/stdin.txt"
+	FileSTDOUT        string = "/var/local/lib/isolate/1/stdout.txt"
+	FileSTDERR        string = "/var/local/lib/isolate/1/stderr.txt"
 	FileCompileOutput string = "/var/local/lib/isolate/1/compile_output.txt"
 
 	MoveToBox string = "/var/local/lib/isolate/1/box"
@@ -271,15 +281,16 @@ func executeCommand(command string) (output string, err error) {
 }
 
 func main() {
-
-	code := "puts 'hello'"
-	boxNum := "1"
-	input := ""
-
-	langSpecs := SupportedLanguage[1]
-	if runtime.GOOS == "windows" {
-		fmt.Println("Can't Execute this on a windows machine")
-	} else {
-		execute(code, input, langSpecs, boxNum)
-	}
+	ctx := context.Background()
+	isolate.Run(ctx)
+	//code := "puts 'hello'"
+	//boxNum := "1"
+	//input := ""
+	//
+	//langSpecs := SupportedLanguage[1]
+	//if runtime.GOOS == "windows" {
+	//	fmt.Println("Can't Execute this on a windows machine")
+	//} else {
+	//	execute(code, input, langSpecs, boxNum)
+	//}
 }
