@@ -47,6 +47,9 @@ func RuncodeHandler(service service.Service) http.HandlerFunc {
 			return
 		}
 		res, err := service.Run(req.Context(), executeCodeRequest.Code, executeCodeRequest.Language, executeCodeRequest.Input)
+		if err != nil {
+			return
+		}
 		var executeCodeResponse ExecuteCodeResponse
 		executeCodeResponse.Output = res
 		api.Success(rw, http.StatusOK, executeCodeResponse)
