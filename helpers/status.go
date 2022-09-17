@@ -5,7 +5,7 @@ type Status struct {
 	Value string
 }
 
-var ErrorToStatus = map[string]Status{
+var StatusMap = map[string]Status{
 	"queue":   Status{Id: 1, Value: "In Queue"},
 	"process": Status{Id: 2, Value: "Processing"},
 	"ac":      Status{Id: 3, Value: "Accepted"},

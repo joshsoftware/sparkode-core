@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/joshsoftware/sparkode-core/api"
 	"github.com/joshsoftware/sparkode-core/isolate"
@@ -28,9 +29,27 @@ func RuncodeHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	start := time.Now()
 	languageSpecs := isolate.SupportedLanguageSpecs[executeCodeRequest.ID]
-	isolate.Run(context.Background(), languageSpecs, executeCodeRequest)
+	stdout, stderr, err := isolate.Run(context.Background(), languageSpecs, executeCodeRequest)
+	if err != nil {
+		api.Error(rw, http.StatusInternalServerError, model.ExecuteCodeError{Error: "internal server error"})
+		return
+	}
 
+	timeTaken := time.Since(start)
 	var executeCodeResponse model.ExecuteCodeResponse
+
+	executeCodeResponse.TimeTaken = float32(timeTaken.Seconds())
+
+	if stderr != "" {
+		executeCodeResponse.Output = ""
+		executeCodeResponse.Status = false
+		api.Success(rw, http.StatusOK, executeCodeResponse)
+	}
+
+	executeCodeResponse.Status = true
+	executeCodeResponse.Output = stdout
+
 	api.Success(rw, http.StatusOK, executeCodeResponse)
 }
