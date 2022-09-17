@@ -13,6 +13,12 @@ var (
 	appPort int
 )
 
+type RunConfig struct {
+	TimeLimit   float64
+	WallLimit   float64
+	MemoryLimit int
+}
+
 func Load() {
 	viper.SetDefault("APP_NAME", "app")
 	viper.SetDefault("APP_PORT", "8002")
