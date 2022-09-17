@@ -16,6 +16,10 @@ import (
 
 func Run(ctx context.Context, jobType JobType, langSpecs LanguageDetails, codeData model.ExecuteCodeRequest) (stdout string, stderr string, err error) {
 
+	var (
+		out, errout string
+	)
+
 	boxID := GenerateRandomID()
 	defer func() {
 		fmt.Println("running cleanup")
@@ -57,16 +61,23 @@ func Run(ctx context.Context, jobType JobType, langSpecs LanguageDetails, codeDa
 			return
 		}
 
-		createCompileCMD(runCfg, filepath.Join(workdir, boxID), boxID)
+		command := createCompileCMD(runCfg, filepath.Join(workdir, boxID), boxID)
+		out, errout, err = Shellout(command)
 		if err != nil {
-			err = fmt.Errorf("error occured while creating source files : %s", err.Error())
+			log.Printf("error: %v\n", err)
+			err = fmt.Errorf("error occured while executing final command  : %s", err.Error())
 			return
 		}
+		fmt.Println("--- stdout ---")
+		fmt.Println(out)
+		fmt.Println("--- stderr ---")
+		fmt.Println(errout)
+
 	}
 
 	command := createRunCMD(runCfg, filepath.Join(workdir, boxID), boxID)
 	fmt.Println("Final Command : ", command)
-	out, errout, err := Shellout(command)
+	out, errout, err = Shellout(command)
 	if err != nil {
 		log.Printf("error: %v\n", err)
 		err = fmt.Errorf("error occured while creating final command  : %s", err.Error())
@@ -116,7 +127,7 @@ func createRunCMD(cfg config.RunConfig, workdir, boxId string) string {
 // create command to --compile
 func createCompileCMD(cfg config.RunConfig, workdir, boxId string) string {
 	cmd := fmt.Sprintf(
-		"isolate --cg -s -b %s -M %s/metadata.txt  -i /dev/null -t %.1f -x 1.0 -w %.1f -k 128000 -p60 --cg-timing --cg-mem=%d -f 4009 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"  -d /etc:noexec --run -- /bin/bash compile > %s/compile_output.txt", boxId, workdir, cfg.TimeLimit, cfg.WallLimit, cfg.MemoryLimit, workdir)
+		"isolate --cg -s -b %s -M %s/metadata.txt  -i /dev/null -t %.1f -x 1.0 -w %.1f -k 128000 -p120 --cg-timing --cg-mem=%d -f 4009 -E HOME=/tmp -E PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"  -d /etc:noexec --run -- /bin/bash compile > %s/compile_output.txt", boxId, workdir, cfg.TimeLimit, cfg.WallLimit, cfg.MemoryLimit, workdir)
 
 	return cmd
 }
@@ -177,7 +188,7 @@ func createSourceFilesForCompile(langSpecs LanguageDetails, codeData model.Execu
 		fmt.Println("Failed to Initialize File :", fileName)
 		return
 	}
-	fmt.Println("Created File : ", fileName)
+	fmt.Println("Written File : ", fileName)
 
 	// Create compile file
 	fileName = filepath.Join(boxPath, "box", filepath.Base("compile"))
@@ -192,6 +203,7 @@ func createSourceFilesForCompile(langSpecs LanguageDetails, codeData model.Execu
 	if err != nil {
 		fmt.Println("Failed to InitializeFile", fileName)
 	}
+	fmt.Println("Written File : ", fileName)
 
 	//Create run file
 	fileName = filepath.Join(boxPath, "box", filepath.Base("run"))
@@ -208,6 +220,7 @@ func createSourceFilesForCompile(langSpecs LanguageDetails, codeData model.Execu
 		fmt.Println("Failed to InitializeFile", fileName)
 		return
 	}
+	fmt.Println("Written File : ", fileName)
 
 	//write input into file
 	inputFileName := filepath.Join(boxPath, filepath.Base(STDIN_FILE_NAME))
