@@ -14,7 +14,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-func Run(ctx context.Context, code string, input string, langSpecs LanguageDetails, codeData model.ExecuteCodeRequest) {
+func Run(ctx context.Context, langSpecs LanguageDetails, codeData model.ExecuteCodeRequest) {
 
 	boxID := GenerateRandomID()
 	defer func() {
@@ -41,7 +41,7 @@ func Run(ctx context.Context, code string, input string, langSpecs LanguageDetai
 
 	command := createCMD(runCfg, filepath.Join(workdir, boxID), boxID)
 
-	err, out, errout := Shellout(command)
+	out, errout, err := Shellout(command)
 	if err != nil {
 		log.Printf("error: %v\n", err)
 	}

@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/joshsoftware/sparkode-core/api"
+	"github.com/joshsoftware/sparkode-core/isolate"
 	"github.com/joshsoftware/sparkode-core/model"
 )
 
@@ -25,6 +27,9 @@ func RuncodeHandler(rw http.ResponseWriter, req *http.Request) {
 		api.Error(rw, http.StatusBadRequest, model.ExecuteCodeError{Error: "language/program field must not be empty"})
 		return
 	}
+
+	languageSpecs := isolate.SupportedLanguageSpecs[executeCodeRequest.ID]
+	isolate.Run(context.Background(), languageSpecs, executeCodeRequest)
 
 	var executeCodeResponse model.ExecuteCodeResponse
 	api.Success(rw, http.StatusOK, executeCodeResponse)
