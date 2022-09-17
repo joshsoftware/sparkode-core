@@ -36,6 +36,23 @@ const (
 	COMPILED_FILE_NAME = "compile_output.txt"
 )
 
+const (
+	LanguageRuby string = "rb"
+	LanguageGo   string = "go"
+)
+
+type JobType string
+
+const (
+	JobCompile JobType = "compile"
+	JobRun     JobType = "run"
+)
+
+var LanguageNameToJobType = map[string]JobType{
+	LanguageRuby: JobRun,
+	LanguageGo:   JobCompile,
+}
+
 var SupportedLanguage = map[int]string{
 	1: "Ruby",
 	2: "Go",
@@ -60,12 +77,12 @@ var SupportedLanguageSpecs = map[int]LanguageDetails{
 		ID:             2,
 		Name:           "Go (1.19.1)",
 		SourceFile:     "main.go",
-		CompileCommand: "GOCACHE=/tmp/.cache/go-build /usr/local/go-1.19.1/bin/go build %s main.go",
-		RunCommand:     "./sourceCode",
+		CompileCommand: "/usr/local/go-1.19.1/bin/go build  main.go",
+		RunCommand:     "./main",
 	},
 }
 
-//needs filepath as input /var/local/lib/source/1/
+// needs filepath as input /var/local/lib/source/1/
 func InitializeFile(path string) {
 	files := []string{STDIN_FILE_NAME,
 		STDOUT_FILE_NAME,

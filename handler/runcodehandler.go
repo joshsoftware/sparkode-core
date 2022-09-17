@@ -27,9 +27,14 @@ func RuncodeHandler(rw http.ResponseWriter, req *http.Request) {
 		api.Error(rw, http.StatusBadRequest, model.ExecuteCodeError{Error: "language/program field must not be empty"})
 		return
 	}
+	jobType, ok := isolate.LanguageNameToJobType[executeCodeRequest.Language]
+	if !ok {
+		api.Error(rw, http.StatusBadRequest, model.ExecuteCodeError{Error: "invalid job type"})
+		return
+	}
 
 	languageSpecs := isolate.SupportedLanguageSpecs[executeCodeRequest.ID]
-	isolate.Run(context.Background(), languageSpecs, executeCodeRequest)
+	isolate.Run(context.Background(), jobType, languageSpecs, executeCodeRequest)
 
 	var executeCodeResponse model.ExecuteCodeResponse
 	api.Success(rw, http.StatusOK, executeCodeResponse)
